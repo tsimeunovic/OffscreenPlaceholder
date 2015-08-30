@@ -5,7 +5,11 @@ Universal AngularJs virtual scrolling module
 It unloads elements that are not visible within specific boundaries and replace them with same height placeholder so that end user does not notice anything. Its also usable for lazyloading elements. Compared to other available solutions, it does not require all elements to be of same height and works even when height is not predictable in advance (not so efficient however). Overall minified size is around 3kb.
 
 ## How do I use it?
-Include javascript file from GitHub (or download copy in your project)
+Install via bower
+```bash
+bower install offscreen-placeholder
+```
+then include javascript file. Or reference script file from GitHub
 ```html
 <script src="https://cdn.rawgit.com/tsimeunovic/OffscreenPlaceholder/master/offscreenPlaceholder.min.js"></script>
 ```
