@@ -1,0 +1,21 @@
+{
+  "name": "offscreen-placeholder",
+  "main": "offscreenPlaceholder.js",
+  "version": "1.0.1",
+  "description": "Universal AngularJs virtual scrolling solution",
+  "keywords": [
+    "AngularJs",
+    "VirtualScroll"
+  ],
+  "authors": [
+    "Tomislav Simeunovic <tomislav87@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
