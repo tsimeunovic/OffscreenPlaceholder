@@ -12,7 +12,8 @@
     topOffset: 100, //Top offset above viewport where we start/stop displaying content
     bottomOffset: 200, //Bottom offset below viewport where we start/stop displaying content
     minimumItemsTreshold: 10, //Minimum items count that triggers feature
-    measureElementTimeoutMs: 1 //Wait time before measuring DOM element dimensions
+    measureElementTimeoutMs: 1, //Wait time before measuring DOM element dimensions
+    scrollEndRenderTimeoutMs: 0 //Wait time between scroll end and elements rerendering
   })
   .service('offscreenPlaceholderCoordinator', ['offscreenPlaceholderConfiguration', function (offscreenPlaceholderConfiguration) {
     //Global variables
@@ -55,18 +56,10 @@
       }
     }
 
-    function registerListeners(register) {
-      offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('scroll', updateElements);
-      offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('touchmove', updateElements);
-    }
-
     //Main update function
     function updateElements() {
       //Timeout cleanup
-      if (scheduledUpdate) {
-        window.clearTimeout(scheduledUpdate);
-        scheduledUpdate = null;
-      }
+      clearScheduledUpdate();
 
       //Check if update is necessary
       var scrollTop = offscreenPlaceholderConfiguration.scrollRoot.scrollTop;
@@ -86,19 +79,44 @@
       renderedScrollTop = scrollTop;
     }
 
-    function scheduleUpdate() {
-      if (!scheduledUpdate) {
-        scheduledUpdate = window.setTimeout(updateElements, 1);
+    //Updates scheduling
+    function clearScheduledUpdate() {
+      if (scheduledUpdate) {
+        window.clearTimeout(scheduledUpdate);
+        scheduledUpdate = null;
       }
     }
 
+    function scheduleUpdate(scheduleMs) {
+      if (!scheduledUpdate) {
+        scheduledUpdate = window.setTimeout(updateElements, scheduleMs);
+      }
+    }
+
+    function rescheduleUpdate(nextScheduleMs) {
+      clearScheduledUpdate();
+      scheduleUpdate(nextScheduleMs);
+    }
+
+    //Event listeners
+    function scrollChangedHandler() {
+      var renderWaitMs = offscreenPlaceholderConfiguration.scrollEndRenderTimeoutMs;
+      renderWaitMs ? rescheduleUpdate(renderWaitMs) : updateElements();
+    }
+
+    function registerListeners(register) {
+      offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('scroll', scrollChangedHandler);
+      offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('touchmove', scrollChangedHandler);
+    }
+
+    //Exposed functions
     function registerElement(element) {
       registeredElements.push(element);
       if(registeredElements.length === 1) {
         registerListeners(true);
       }
       renderedScrollTop = null;
-      scheduleUpdate();
+      scheduleUpdate(1);
     }
 
     function unregisterElement(element) {
