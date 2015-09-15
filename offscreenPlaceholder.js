@@ -13,7 +13,8 @@
     bottomOffset: 200, //Bottom offset below viewport where we start/stop displaying content
     minimumItemsTreshold: 10, //Minimum items count that triggers feature
     measureElementTimeoutMs: 1, //Wait time before measuring DOM element dimensions
-    scrollEndRenderTimeoutMs: 0 //Wait time between scroll end and elements rerendering
+    scrollEndRenderTimeoutMs: 0, //Wait time between scroll end and elements rerendering
+    placeholderContentTemplate: null //Inner content of placeholder element
   })
   .service('offscreenPlaceholderCoordinator', ['offscreenPlaceholderConfiguration', function (offscreenPlaceholderConfiguration) {
     //Global variables
@@ -200,6 +201,7 @@
           //Create placeholder and remove content
           placeholder = document.createElement('div');
           placeholder.setAttribute("style", "height:" + elementObj.height + "px;margin:0px;");
+          placeholder.innerHTML = offscreenPlaceholderConfiguration.placeholderContentTemplate;
           $element[0].parentNode.insertBefore(placeholder, $element[0].nextSibling);
 
           //Remove content and dispose created child scope

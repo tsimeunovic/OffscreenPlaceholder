@@ -2,7 +2,7 @@
 Universal AngularJs virtual scrolling module
 
 ## What does it do?
-It unloads elements that are not visible within specific boundaries and replace them with same height placeholder so that end user does not notice anything. Its also usable for lazyloading elements. Compared to other available solutions, it does not require all elements to be of same height and works even when height is not predictable in advance (not so efficient however). Overall minified size is around 3kb.
+It unloads elements that are not visible within specific boundaries and replace them with same height placeholder so that end user does not notice anything. It is also usable for lazy loading of elements. Compared to other available solutions, it does not require all elements to be of same height or within common scrollable direct parent element and works even when height is not predictable in advance (not so efficient however). Overall minified size is around 3kb.
 
 ## How do I use it?
 Install via bower
