@@ -42,6 +42,6 @@ There is value object `offscreenPlaceholderConfiguration` registered that holds 
 - **scrollRoot** is DOM element that we track scrolling for. By default its body
 - **topOffset** size in px above window where content should appear/disappear. Default is 100
 - **bottomOffset** size in px below window where content should appear/disappear. Default is 200
-- **minimumItemsTreshold** specify how much elements must be registered to activate feature. Default is 10
+- **minimumItemsThreshold** specify how much elements must be registered to activate feature. Default is 10
 - **measureElementTimeoutMs** specify how long timeout is set (in ms) between adding element to DOM and measuring its dimensions. Some more complicated elements might require more time to properly render. Default is 1
 - **scrollEndRenderTimeoutMs** specify time in ms between scroll end and recalculation with rendering starts. Default is 0, which means immediately
