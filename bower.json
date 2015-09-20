@@ -1,8 +1,13 @@
 {
   "name": "offscreen-placeholder",
   "main": "offscreenPlaceholder.js",
-  "version": "1.0.2",
+  "homepage": "https://tsimeunovic.github.io/offscreenplaceholder",
+  "version": "1.0.3",
   "description": "Universal AngularJs virtual scrolling solution",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsimeunovic/OffscreenPlaceholder.git"
+  },
   "keywords": [
     "AngularJs",
     "VirtualScroll"
