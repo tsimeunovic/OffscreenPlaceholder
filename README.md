@@ -39,9 +39,11 @@ If you know element height and top and bottom margin in advance, pass it in attr
 
 ## How do I configure it?
 There is value object `offscreenPlaceholderConfiguration` registered that holds configuration options. You can include it in any service/controller and change parameters as you like
-- **scrollRoot** is DOM element that we track scrolling for. By default its body
+- **scrollRoot** is DOM element that we track scrolling for. By default its document element
 - **topOffset** size in px above window where content should appear/disappear. Default is 100
 - **bottomOffset** size in px below window where content should appear/disappear. Default is 200
 - **minimumItemsThreshold** specify how much elements must be registered to activate feature. Default is 10
 - **measureElementTimeoutMs** specify how long timeout is set (in ms) between adding element to DOM and measuring its dimensions. Some more complicated elements might require more time to properly render. Default is 1
 - **scrollEndRenderTimeoutMs** specify time in ms between scroll end and recalculation with rendering starts. Default is 0, which means immediately
+- **usePerItemPlaceholder** specify if single large placeholder should be used or multiple per-item placeholders are created. Default is false
+- **placeholderContentTemplate** specify content for every created placeholder. Default is null, that creates empty placeholder
