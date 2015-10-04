@@ -6,6 +6,7 @@
 (function (window, angular) {
     'use strict';
 
+    //Register angular components
     angular.module('offscreen-placeholder', [])
         .value('offscreenPlaceholderConfiguration', {
             scrollRoot: document, //Element with scroll listener
@@ -22,6 +23,7 @@
             var registeredElementGroups = []; //Array of objects {parent:{DOMElement}, elements:[]}
             var renderedScrollTop = null;
             var scheduledUpdate = null;
+            var requestAnimationFrameVersion = 0;
 
             //Helper functions
             function getElementGroupFor(parent, createIfNotExist) {
@@ -120,7 +122,7 @@
 
                 //Check if update is necessary
                 var scrollRoot = offscreenPlaceholderConfiguration.scrollRoot;
-                var scrollingElement = scrollRoot.scrollingElement  || scrollRoot.documentElement || scrollRoot;
+                var scrollingElement = scrollRoot.scrollingElement || scrollRoot.documentElement || scrollRoot;
                 var scrollTop = scrollingElement.scrollTop;
                 if (!checkUpdateNecessity(scrollTop)) {
                     return;
@@ -134,7 +136,12 @@
                 var toggleElements = getToggleElements(lowerMustHave, upperMustHave);
 
                 //Update elements
-                pushUpdatesToElements(toggleElements);
+                var updateVersion = ++requestAnimationFrameVersion;
+                requestAnimationFrame(function () {
+                    if (updateVersion === requestAnimationFrameVersion) {
+                        pushUpdatesToElements(toggleElements);
+                    }
+                });
                 renderedScrollTop = scrollTop;
             }
 
@@ -260,9 +267,10 @@
                         }
                         contentElement = $element[0].nextSibling;
 
-                        //Add inline height attribute to prevent jump while rendering
+                        //Add inline height attribute to prevent jump while rendering as well as absolute positioning and translatez for performance
                         if (elementObj.innerHeight) {
-                            $element[0].nextSibling.setAttribute('style', 'height:' + elementObj.innerHeight + 'px');
+                            var inlineStyle = 'height:' + elementObj.innerHeight + 'px;position:absolute:top:' + elementObj.innerHeight + 'px;transform:translatez(0);';
+                            contentElement.setAttribute('style', inlineStyle);
                         }
 
                         //Remove placeholder
