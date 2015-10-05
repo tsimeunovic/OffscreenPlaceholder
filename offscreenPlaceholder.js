@@ -35,20 +35,12 @@
                 if (createIfNotExist) {
                     var newGroup = {
                         parent: parent,
+                        topOffset: getElementTopOffset(parent),
                         elements: [],
                         totalHeight: 0
                     };
 
                     registeredElementGroups.push(newGroup);
-                    if (!offscreenPlaceholderConfiguration.usePerItemPlaceholder) {
-                        //Create global placeholder
-                        var placeholder = document.createElement('div');
-                        placeholder.setAttribute('style', 'height:0px;margin:0px;overflow:hidden;');
-                        placeholder.innerHTML = offscreenPlaceholderConfiguration.placeholderContentTemplate;
-                        parent.insertBefore(placeholder, parent.childNodes[0]);
-                        newGroup.placeholder = placeholder;
-                    }
-
                     return newGroup;
                 }
             }
@@ -95,8 +87,7 @@
                         parent: elementsGroup.parent,
                         totalHeight: elementsGroup.totalHeight,
                         totalTopOffset: totalTopOffset,
-                        toggleElements: toggleElementsForContainer,
-                        placeholder: elementsGroup.placeholder
+                        toggleElements: toggleElementsForContainer
                     });
                 }
                 return toggleElements;
@@ -108,9 +99,6 @@
                     for (var i = 0; i < toggleElementsGroup.toggleElements.length; i++) {
                         var element = toggleElementsGroup.toggleElements[i];
                         element[element.isInDom ? 'removeFromDom' : 'addToDom']();
-                    }
-                    if (!offscreenPlaceholderConfiguration.usePerItemPlaceholder) {
-                        toggleElementsGroup.placeholder.setAttribute('style', 'height:' + toggleElementsGroup.totalTopOffset + 'px;margin:0px;overflow:hidden;');
                     }
                 }
             }
@@ -176,6 +164,11 @@
             }
 
             //Exposed functions
+            function getElementTopOffset(element) {
+                var box = element.getBoundingClientRect ? element.parentElement.getBoundingClientRect() : element.parentElement.getBoundingClientRect();
+                return box.top + window.pageYOffset - document.documentElement.clientTop;
+            }
+
             function registerElement(element) {
                 var firstRegisteredElement = !registeredElementGroups.length;
                 var elementGroup = getElementGroupFor(element.parentElement, true);
@@ -183,9 +176,10 @@
                     //Update element top offset and parent height
                     element.topOffset += elementGroup.totalHeight;
                     elementGroup.totalHeight += element.height;
-                    element.parentElement.setAttribute('style', 'height:' + elementGroup.totalHeight + 'px;');
+                    element.parentElement.setAttribute('style', 'height:' + elementGroup.totalHeight + 'px;position:relative;transform:translatez(0);');
                 }
                 elementGroup.elements.push(element);
+                element.elementGroup = elementGroup;
                 if (firstRegisteredElement) {
                     registerListeners(true);
                 }
@@ -194,9 +188,10 @@
             }
 
             function unregisterElement(element) {
-                var elementGroup = getElementGroupFor(element.parentElement, false);
+                var elementGroup = element.elementGroup;
                 if (elementGroup) {
                     //Remove element
+                    element.elementGroup = null;
                     var index = elementGroup.elements.indexOf(element);
                     if (index > -1) {
                         elementGroup.elements.splice(index, 1);
@@ -221,7 +216,8 @@
             //Public api
             return {
                 registerElement: registerElement,
-                unregisterElement: unregisterElement
+                unregisterElement: unregisterElement,
+                getElementTopOffset: getElementTopOffset
             };
         }])
         .directive('offscreenPlaceholder', ['$animate', '$parse', 'offscreenPlaceholderCoordinator', 'offscreenPlaceholderConfiguration', function ($animate, $parse, offscreenPlaceholderCoordinator, offscreenPlaceholderConfiguration) {
@@ -243,7 +239,8 @@
                         innerHeight: null, //Height without margin
                         height: null, //Total height with margin
                         topOffset: null, //Offset relative to document top
-                        parentElement: null //Elements direct parent
+                        parentElement: null, //Elements direct parent
+                        elementGroup:null //Reference to group of related elements
                     };
 
                     //Fill with provided values if available
@@ -267,10 +264,10 @@
                         }
                         contentElement = $element[0].nextSibling;
 
-                        //Add inline height attribute to prevent jump while rendering as well as absolute positioning and translatez for performance
+                        //Add inline height attribute to prevent jump while rendering and translatez for performance
                         if (elementObj.innerHeight) {
-                            var inlineStyle = 'height:' + elementObj.innerHeight + 'px;position:absolute:top:' + elementObj.innerHeight + 'px;transform:translatez(0);';
-                            contentElement.setAttribute('style', inlineStyle);
+                            var elementTop = elementObj.topOffset - elementObj.elementGroup.topOffset;
+                            contentElement.setAttribute('style', 'height:' + elementObj.innerHeight + 'px;transform:translatez(0);position:absolute;top:' + elementTop + 'px;');
                         }
 
                         //Remove placeholder
@@ -321,9 +318,7 @@
                         }
 
                         //Offset
-                        var de = document.documentElement;
-                        var box = element.getBoundingClientRect ? element.parentElement.getBoundingClientRect() : element.parentElement.getBoundingClientRect();
-                        elementObj.topOffset = box.top + window.pageYOffset - de.clientTop;
+                        elementObj.topOffset = offscreenPlaceholderCoordinator.getElementTopOffset(element);
                     };
 
                     var measureAndRegister = function () {
