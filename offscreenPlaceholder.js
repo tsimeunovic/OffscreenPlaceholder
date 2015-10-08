@@ -12,18 +12,15 @@
             scrollRoot: document, //Element with scroll listener
             topOffset: 100, //Top offset above viewport where we start/stop displaying content
             bottomOffset: 200, //Bottom offset below viewport where we start/stop displaying content
-            minimumItemsThreshold: 10, //Minimum items count that triggers feature
-            measureElementTimeoutMs: 1, //Wait time before measuring DOM element dimensions
-            scrollEndRenderTimeoutMs: 0, //Wait time between scroll end and elements re-rendering
-            usePerItemPlaceholder: false, //Determines if every item gets its own placeholder
-            placeholderContentTemplate: null //Inner content of placeholder element
+            minimumItemsThreshold: 10 //Minimum items count that triggers feature
         })
         .service('offscreenPlaceholderCoordinator', ['offscreenPlaceholderConfiguration', function (offscreenPlaceholderConfiguration) {
             //Global variables
             var registeredElementGroups = []; //Array of objects {parent:{DOMElement}, elements:[]}
+            var requestAnimationFrameVersion = 0;
             var renderedScrollTop = null;
             var scheduledUpdate = null;
-            var requestAnimationFrameVersion = 0;
+            var scrollingElement = null;
 
             //Helper functions
             function getElementGroupFor(parent, createIfNotExist) {
@@ -33,9 +30,13 @@
                     }
                 }
                 if (createIfNotExist) {
+                    //Measure group top offset
+                    var box = parent.getBoundingClientRect ? parent.parentElement.getBoundingClientRect() : parent.parentElement.getBoundingClientRect();
+                    var groupTopOffset = box.top + scrollingElement.scrollTop - document.documentElement.clientTop;
+
                     var newGroup = {
                         parent: parent,
-                        topOffset: getElementTopOffset(parent),
+                        topOffset: groupTopOffset,
                         elements: [],
                         totalHeight: 0
                     };
@@ -109,8 +110,6 @@
                 clearScheduledUpdate();
 
                 //Check if update is necessary
-                var scrollRoot = offscreenPlaceholderConfiguration.scrollRoot;
-                var scrollingElement = scrollRoot.scrollingElement || scrollRoot.documentElement || scrollRoot;
                 var scrollTop = scrollingElement.scrollTop;
                 if (!checkUpdateNecessity(scrollTop)) {
                     return;
@@ -134,6 +133,13 @@
             }
 
             //Updates scheduling
+            function scheduleForcedUpdate() {
+                renderedScrollTop = null;
+                if (!scheduledUpdate) {
+                    scheduledUpdate = window.setTimeout(updateElements, 1);
+                }
+            }
+
             function clearScheduledUpdate() {
                 if (scheduledUpdate) {
                     window.clearTimeout(scheduledUpdate);
@@ -141,86 +147,65 @@
                 }
             }
 
-            function scheduleUpdate(scheduleMs) {
-                if (!scheduledUpdate) {
-                    scheduledUpdate = window.setTimeout(updateElements, scheduleMs);
-                }
-            }
-
-            function rescheduleUpdate(nextScheduleMs) {
-                clearScheduledUpdate();
-                scheduleUpdate(nextScheduleMs);
-            }
-
             //Event listeners
-            function scrollChangedHandler() {
-                var renderWaitMs = offscreenPlaceholderConfiguration.scrollEndRenderTimeoutMs;
-                renderWaitMs ? rescheduleUpdate(renderWaitMs) : updateElements();
-            }
-
             function registerListeners(register) {
-                offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('scroll', scrollChangedHandler);
-                offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('touchmove', scrollChangedHandler);
-            }
-
-            //Exposed functions
-            function getElementTopOffset(element) {
-                var box = element.getBoundingClientRect ? element.parentElement.getBoundingClientRect() : element.parentElement.getBoundingClientRect();
-                return box.top + window.pageYOffset - document.documentElement.clientTop;
+                offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('scroll', updateElements);
+                offscreenPlaceholderConfiguration.scrollRoot[register ? 'addEventListener' : 'removeEventListener']('touchmove', updateElements);
+                window[register ? 'addEventListener' : 'removeEventListener']('resize', scheduleForcedUpdate);
             }
 
             function registerElement(element) {
-                var firstRegisteredElement = !registeredElementGroups.length;
-                var elementGroup = getElementGroupFor(element.parentElement, true);
-                if (!offscreenPlaceholderConfiguration.usePerItemPlaceholder) {
-                    //Update element top offset and parent height
-                    element.topOffset += elementGroup.totalHeight;
-                    elementGroup.totalHeight += element.height;
-                    element.parentElement.setAttribute('style', 'height:' + elementGroup.totalHeight + 'px;position:relative;transform:translatez(0);');
+                //If is first element, register listeners and determine scrolling element
+                if (!registeredElementGroups.length) {
+                    registerListeners(true);
+                    var scrollRoot = offscreenPlaceholderConfiguration.scrollRoot;
+                    scrollingElement = scrollRoot.scrollingElement || scrollRoot.documentElement || scrollRoot;
                 }
+
+                //Get element group
+                var elementGroup = getElementGroupFor(element.parentElement, true);
+
+                //Update element top offset and parent total height
+                element.topOffset = elementGroup.topOffset + elementGroup.totalHeight;
+                elementGroup.totalHeight += element.height;
+                element.parentElement.setAttribute('style', 'height:' + elementGroup.totalHeight + 'px;position:relative;transform:translatez(0);');
+
+                //Add element to element group
                 elementGroup.elements.push(element);
                 element.elementGroup = elementGroup;
-                if (firstRegisteredElement) {
-                    registerListeners(true);
-                }
-                renderedScrollTop = null;
-                scheduleUpdate(1);
+
+                //Schedule update
+                scheduleForcedUpdate();
             }
 
             function unregisterElement(element) {
+                //Remove element
                 var elementGroup = element.elementGroup;
-                if (elementGroup) {
-                    //Remove element
-                    element.elementGroup = null;
-                    var index = elementGroup.elements.indexOf(element);
-                    if (index > -1) {
-                        elementGroup.elements.splice(index, 1);
-                    }
-                    //If no element is left, remove entire group
-                    if (elementGroup.elements.length === 0) {
-                        var groupIndex = registeredElementGroups.indexOf(elementGroup);
-                        registeredElementGroups.splice(groupIndex, 1);
-                    }
+                var index = elementGroup.elements.indexOf(element);
+                if (index > -1) {
+                    elementGroup.elements.splice(index, 1);
                 }
+                element.elementGroup = null;
+
+                //If no element is left, remove entire group
+                if (elementGroup.elements.length === 0) {
+                    var groupIndex = registeredElementGroups.indexOf(elementGroup);
+                    registeredElementGroups.splice(groupIndex, 1);
+                }
+
+                //If no group is left, remove listeners
                 if (!registeredElementGroups.length) {
                     registerListeners(false);
                 }
             }
 
-            //Force update on window size change
-            window.addEventListener('resize', function () {
-                renderedScrollTop = null;
-                updateElements();
-            });
-
             //Public api
             return {
                 registerElement: registerElement,
-                unregisterElement: unregisterElement,
-                getElementTopOffset: getElementTopOffset
+                unregisterElement: unregisterElement
             };
         }])
-        .directive('offscreenPlaceholder', ['$animate', '$parse', 'offscreenPlaceholderCoordinator', 'offscreenPlaceholderConfiguration', function ($animate, $parse, offscreenPlaceholderCoordinator, offscreenPlaceholderConfiguration) {
+        .directive('offscreenPlaceholder', ['$animate', '$parse', 'offscreenPlaceholderCoordinator', function ($animate, $parse, offscreenPlaceholderCoordinator) {
             return {
                 multiElement: true,
                 transclude: 'element',
@@ -229,7 +214,7 @@
                 restrict: 'A',
                 $$tlb: true,
                 link: function ($scope, $element, $attr, ctrl, $transclude) {
-                    var childScope, placeholder, contentElement;
+                    var childScope, contentElement;
 
                     //Object describing element and providing functions to add and remove it
                     var elementObj = {
@@ -240,18 +225,8 @@
                         height: null, //Total height with margin
                         topOffset: null, //Offset relative to document top
                         parentElement: null, //Elements direct parent
-                        elementGroup:null //Reference to group of related elements
+                        elementGroup: null //Reference to group of related elements
                     };
-
-                    //Fill with provided values if available
-                    if ($attr.offscreenPlaceholder) {
-                        var input = $attr.offscreenPlaceholder.match(/^[\d,\s]+$/g) ? $attr.offscreenPlaceholder : $parse($attr.offscreenPlaceholder)($scope).toString();
-                        var providedValues = input.split(',');
-                        elementObj.innerHeight = parseFloat(providedValues[0], 10);
-                        var margins = providedValues.length > 1 ? parseFloat(providedValues[1], 10) : 0;
-                        elementObj.height = elementObj.innerHeight + margins;
-                        elementObj.parentElement = $element.parent()[0];
-                    }
 
                     //Add to DOM
                     elementObj.addToDom = function () {
@@ -265,15 +240,8 @@
                         contentElement = $element[0].nextSibling;
 
                         //Add inline height attribute to prevent jump while rendering and translatez for performance
-                        if (elementObj.innerHeight) {
-                            var elementTop = elementObj.topOffset - elementObj.elementGroup.topOffset;
-                            contentElement.setAttribute('style', 'height:' + elementObj.innerHeight + 'px;transform:translatez(0);position:absolute;top:' + elementTop + 'px;');
-                        }
-
-                        //Remove placeholder
-                        if (placeholder) {
-                            placeholder.parentNode.removeChild(placeholder);
-                        }
+                        var elementTop = elementObj.topOffset - elementObj.elementGroup.topOffset;
+                        contentElement.setAttribute('style', 'height:' + elementObj.innerHeight + 'px;position:absolute;top:' + elementTop + 'px;transform:translatez(0);');
 
                         //Set state
                         elementObj.isInDom = true;
@@ -281,14 +249,6 @@
 
                     //Remove from DOM
                     elementObj.removeFromDom = function () {
-                        //Create placeholder and remove content
-                        if (offscreenPlaceholderConfiguration.usePerItemPlaceholder) {
-                            placeholder = document.createElement('div');
-                            placeholder.setAttribute('style', 'height:' + elementObj.height + 'px;margin:0px;overflow:hidden;');
-                            placeholder.innerHTML = offscreenPlaceholderConfiguration.placeholderContentTemplate;
-                            $element[0].parentNode.insertBefore(placeholder, $element[0].nextSibling);
-                        }
-
                         //Remove content and dispose created child scope
                         if (contentElement) {
                             contentElement.parentNode.removeChild(contentElement);
@@ -303,41 +263,26 @@
                         elementObj.isInDom = false;
                     };
 
-                    var measureElementDimensions = function () {
-                        //Update element dimensions if real element is available
-                        var element = $element[0].nextSibling;
+                    //Init
+                    (function () {
+                        //Fill with provided values
+                        var input = $attr.offscreenPlaceholder.match(/^[\d,\s]+$/g) ? $attr.offscreenPlaceholder : $parse($attr.offscreenPlaceholder)($scope).toString();
+                        var providedValues = input.split(',');
+                        elementObj.innerHeight = parseFloat(providedValues[0], 10);
+                        var margins = providedValues.length > 1 ? parseFloat(providedValues[1], 10) : 0;
+                        elementObj.height = elementObj.innerHeight + margins;
+                        elementObj.parentElement = $element.parent()[0];
 
-                        //Height
-                        if (!elementObj.height) {
-                            var elementHeight = element.offsetHeight;
-                            var elementMargin = document.all ?
-                            parseInt(element.currentStyle.marginTop, 10) + parseInt(element.currentStyle.marginBottom, 10) :
-                            parseInt(document.defaultView.getComputedStyle(element, '').getPropertyValue('margin-top')) + parseInt(document.defaultView.getComputedStyle(element, '').getPropertyValue('margin-bottom'));
-                            elementObj.innerHeight = elementHeight;
-                            elementObj.height = elementHeight + elementMargin;
-                        }
-
-                        //Offset
-                        elementObj.topOffset = offscreenPlaceholderCoordinator.getElementTopOffset(element);
-                    };
-
-                    var measureAndRegister = function () {
-                        //Measure actual dimensions
-                        measureElementDimensions();
-
-                        //Subscribe
+                        //Register element
                         offscreenPlaceholderCoordinator.registerElement(elementObj);
-                    };
 
-                    //Create element (or placeholder), measure it and then register to 'offscreenPlaceholderCoordinator' service
-                    elementObj[elementObj.height ? 'removeFromDom' : 'addToDom']();
-                    setTimeout(measureAndRegister, offscreenPlaceholderConfiguration.measureElementTimeoutMs);
-
-                    //Destroy cleanup
-                    $scope.$on('$destroy', function () {
-                        offscreenPlaceholderCoordinator.unregisterElement(elementObj);
-                    });
+                        //Destroy cleanup
+                        $scope.$on('$destroy', function () {
+                            offscreenPlaceholderCoordinator.unregisterElement(elementObj);
+                        });
+                    })();
                 }
             };
         }]);
-})(window, window.angular);
+})
+(window, window.angular);

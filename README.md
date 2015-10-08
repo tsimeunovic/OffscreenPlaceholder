@@ -28,7 +28,7 @@ Add `offscreen-placeholder` attribute on element that you want to hide when off 
 </div>
 ```
 
-If you know element height and top and bottom margin in advance, pass it in attribute as 2 comma separated values to improve performance
+If you know element height and top and bottom margin in advance, pass it in attribute as 2 comma separated values to improve performance. You can also supply any angular expression that evaluates as string with up to 2 comma separated values
 ```html
 <div ng-repeat="item in longList">
   <div some-attribute="true" class="list-item" offscreen-placeholder="100,10">
@@ -43,7 +43,3 @@ There is value object `offscreenPlaceholderConfiguration` registered that holds 
 - **topOffset** size in px above window where content should appear/disappear. Default is 100
 - **bottomOffset** size in px below window where content should appear/disappear. Default is 200
 - **minimumItemsThreshold** specify how much elements must be registered to activate feature. Default is 10
-- **measureElementTimeoutMs** specify how long timeout is set (in ms) between adding element to DOM and measuring its dimensions. Some more complicated elements might require more time to properly render. Default is 1
-- **scrollEndRenderTimeoutMs** specify time in ms between scroll end and recalculation with rendering starts. Default is 0, which means immediately
-- **usePerItemPlaceholder** specify if single large placeholder should be used or multiple per-item placeholders are created. Default is false
-- **placeholderContentTemplate** specify content for every created placeholder. Default is null, that creates empty placeholder
