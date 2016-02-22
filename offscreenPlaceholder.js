@@ -21,6 +21,15 @@
             var renderedScrollTop = null;
             var scheduledUpdate = null;
             var scrollingElement = null;
+            var requestAnimationFrameSafe = (function() {
+                return window.requestAnimationFrame ||
+                    window.webkitRequestAnimationFrame ||
+                    window.mozRequestAnimationFrame ||
+                    function(callback) {
+                        window.setTimeout(callback, 1000 / 60);
+                    };
+            })();
+
 
             //Helper functions
             function getElementGroupFor(parent, createIfNotExist) {
@@ -124,7 +133,7 @@
 
                 //Update elements
                 var updateVersion = ++requestAnimationFrameVersion;
-                requestAnimationFrame(function () {
+                requestAnimationFrameSafe(function () {
                     if (updateVersion === requestAnimationFrameVersion) {
                         pushUpdatesToElements(toggleElements);
                     }
